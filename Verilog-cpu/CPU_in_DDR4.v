@@ -22,8 +22,8 @@
 // CPU写入到DDR4开发板中的顶层模块
 // 输入：时钟信号clk，重置信号rst，继续运行信号go。高频率信号hFreq，增加查看地址的值信号addrI，输出信息选择信号dataSel 3bits
 // 输出：7段数码管使能信号an 8bits，七段数码管数据信号seg 8bits，选择信号dataSel的led显示 2bits， 停机信号 halt
-module CPU_in_DDR4(clk, rst, go, hFreq, addrI,dataSel, an, seg, led, haltLed);
-    input clk, rst, go, hFreq, addrI;
+module CPU_in_DDR4(clk, rst, go, hFreq,sFreq,tFreq,lFreq, addrI,dataSel, an, seg, led, haltLed);
+    input clk, rst, go, hFreq, sFreq, tFreq,lFreq, addrI;
     input [2:0] dataSel;
     output [7:0] an, seg;
     output [2:0] led;
@@ -38,8 +38,8 @@ module CPU_in_DDR4(clk, rst, go, hFreq, addrI,dataSel, an, seg, led, haltLed);
 //    reg [31:0] df_display = 2;
 //    reg [31:0] df_cpu = 2;
     ///////////////////////////////////////////////////////
-    reg [31:0] df_cpu = 25_000_000; // 默认的频率是4Hz
-    reg [31:0] df_display = 200_000; // 频率为334Hz
+    reg [31:0] df_cpu = 25_000_00; // 默认的频率是40Hz
+    reg [31:0] df_display = 250_000; // 频率为400Hz
     // CPU 分频
     Divider cpu_divider(.clk(clk), .N(df_cpu), .clk_N(clk_cpu));      
     // 显示分频
@@ -64,7 +64,10 @@ module CPU_in_DDR4(clk, rst, go, hFreq, addrI,dataSel, an, seg, led, haltLed);
     
     always @(posedge clk_cpu) begin
         if (hFreq) df_cpu <= 4;  // the highest frequency is 100Hz
-        else df_cpu <= 976560;  // the lowest frequency is 1Hz
+        else if (tFreq) df_cpu <= 25_00; //40kHz
+        else if (lFreq) df_cpu <= 25_000; //4khz
+        else if (sFreq) df_cpu <= 25_000_0; //400hz
+        else df_cpu <= 25_000_00;  // the lowest frequency is 40Hz
     end
     
     //按键进行内存地址的增加 have problems

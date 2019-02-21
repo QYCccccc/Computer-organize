@@ -22,9 +22,8 @@
 // 用来保存指令的ROM
 // 输入：使能信号en，地址addr 10bits
 // 输出：数据Dout 32bits
-module ROM(en, addr, Dout);
+module ROM(addr, Dout);
     input [9:0] addr;
-    input en;
     output  [31:0] Dout;
     
     integer i;
@@ -32,7 +31,7 @@ module ROM(en, addr, Dout);
     /////////////////////////////////////////////////////////////////////
     // need to change the way to load the data
     initial begin
-        $readmemh("D:\\SingleCycleCPU\\benchmark_ccmb.hex", Datas);
+        $readmemh("D:\\cpu24\\benchmark_new.hex", Datas);
         $display("The fisrt instruction is %h\n", Datas[0]);
     end
     /////////////////////////////////////////////////////////////////////

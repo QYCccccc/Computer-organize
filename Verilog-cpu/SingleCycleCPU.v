@@ -19,7 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-// 单周期CPU顶层模块
+// 单周期CPU数据通路
 // 输入：时钟信号clk，重置信号rst，继续运行信号go，输出信息选择信号sType 2bits，中断信号interupt，读取内存地址memAddr
 // 输出：数据ledData 32bits，停机信号halt
 module SingleCycleCPU(clk, rst, go, sType, interupt, memAddr, ledData, halt);
@@ -38,27 +38,27 @@ module SingleCycleCPU(clk, rst, go, sType, interupt, memAddr, ledData, halt);
     assign halt = !nohalt; // 停机信号
     
      //HI LO Register
-    wire hi_enable;
-    wire [31:0] hi_in,hi_out;
-    assign hi_enable = multu;
-    assign hi_in = result2;
-    PC_reg hi_reg(.clk(clk), .en(hi_enable), .rst(rst), .Din(hi_in), .Dout(hi_out));
+    // wire hi_enable;
+    // wire [31:0] hi_in,hi_out;
+    // assign hi_enable = multu;
+    // assign hi_in = result2;
+    // PC_reg hi_reg(.clk(clk), .en(hi_enable), .rst(rst), .Din(hi_in), .Dout(hi_out));
     
-    wire lo_enable;
-    wire [31:0] lo_in,lo_out;
-    assign lo_enable = multu;
-    assign lo_in = result;
-    PC_reg lo_reg(.clk(clk), .en(lo_enable), .rst(rst), .Din(lo_in), .Dout(lo_out));
+    // wire lo_enable;
+    // wire [31:0] lo_in,lo_out;
+    // assign lo_enable = multu;
+    // assign lo_in = result;
+    // PC_reg lo_reg(.clk(clk), .en(lo_enable), .rst(rst), .Din(lo_in), .Dout(lo_out));
     
     // Instruction ROM
     wire [31:0] ins;
-    ROM m_rom(.en(1), .addr(pc_out[11:2]), .Dout(ins));
+    ROM m_rom(.addr(pc_out[11:2]), .Dout(ins));
 
     // Controller
     wire [3:0] alu_op;
-    wire memToReg, memWrite, alu_src, regWrite, syscall, signedExt, regDst, beq, bne, jr, jmp, jal, multu, mflo ,lh ,bgez;
+    wire memToReg, memWrite, alu_src, regWrite, syscall, signedExt, regDst, beq, bne, jr, jmp, jal, srav,sltiu, lhu, lh ,bgez;
     Controller m_controller(ins[31:26], ins[5:0], alu_op, memToReg, memWrite, alu_src, 
-        regWrite, syscall, signedExt, regDst, beq, bne, jr, jmp, jal, multu, mflo, lh, bgez);
+        regWrite, syscall, signedExt, regDst, beq, bne, jr, jmp, jal, srav,sltiu, lhu, bgez);
    
     
     // Register Files
@@ -66,7 +66,7 @@ module SingleCycleCPU(clk, rst, go, sType, interupt, memAddr, ledData, halt);
     wire [31:0] regDin, rd1, rd2;
     wire choose;
     wire [31:0] OFRAM;//output_from_RAM
-    wire [31:0] lhalfWord;
+    wire [31:0] lhalfWord_U;
     Regfile m_regfile(.clk(clk), .we(regWrite&&nohalt), .ra1(ra1), .ra2(ra2), .rina(rina), .Din(regDin), .rd1(rd1), .rd2(rd2));
     assign ra1 = syscall?5'b00010:ins[25:21]; // 寄存器1的编号
     assign ra2 = syscall?5'b00100:ins[20:16]; // 寄存器2的编号
@@ -74,8 +74,8 @@ module SingleCycleCPU(clk, rst, go, sType, interupt, memAddr, ledData, halt);
     assign choose=result[1];
     assign rina = jal?5'b11111:(regDst?ins[15:11]:ins[20:16]); // 写入寄存器的编号
     assign OFRAM = memToReg?mem_Dout:(jal?tPc:result);//从RAM出来的数据，已经过JAL选择
-    assign lhalfWord =  $signed({16'h0000,choose?OFRAM[31:16]:OFRAM[15:0]} << 16) >>> 16 ; //加载半字，已符号扩展
-    assign regDin = mflo?lo_out:(lh?lhalfWord:OFRAM);// 写入寄存器的数据
+    assign lhalfWord_U = {16'h0000,choose?OFRAM[31:16]:OFRAM[15:0]}  ; //加载半字
+    assign regDin = sltiu?result:(lhu?lhalfWord_U:OFRAM);// 写入寄存器的数据
     
     // ALU 
     wire [31:0] alu_b;
@@ -84,7 +84,7 @@ module SingleCycleCPU(clk, rst, go, sType, interupt, memAddr, ledData, halt);
     wire equ;
     ALU m_alu(.a(rd1), .b(alu_b), .aluop(alu_op), .shamt(shamt), .r1(result), .r2(result2), .equ(equ)); 
     assign alu_b = alu_src?(signedExt?signedImme:unsignedImme):rd2; // 第二个运算因子的来源
-    assign shamt = ins[10:6]; // shamt, may need to modify when add extended instructions
+    assign shamt = srav? rd1[4:0] : ins[10:6]; // srav need rd1
     
     wire bigger;
     assign bigger=(result==0)?1:0;
